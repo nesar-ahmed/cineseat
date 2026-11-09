@@ -30,4 +30,11 @@ next-env.d.ts
 # logs and misc
 *.log
 npm-debug.log*
+.eslintcache
+
+# editors and OS
+.vscode/
+.idea/
+*.swp
+*.swo
 .DS_Store

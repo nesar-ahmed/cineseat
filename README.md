@@ -16,17 +16,28 @@ It runs on one computer with no internet at runtime: no Docker, no email, no thi
 - In-app notification center, Socket.IO live seats, cron jobs (hold expiry, reminders)
 - Admin panel: catalog CRUD, dashboard, reports with CSV export, audit log, check-in
 
-## Tech stack
+## Tech stack (pinned in phase 0)
 
-| Layer     | Choice                                                    |
-| --------- | --------------------------------------------------------- |
-| Monorepo  | npm workspaces + Turborepo                                |
-| Frontend  | Next.js (App Router), Tailwind CSS v3, TanStack Query\*   |
-| Backend   | NestJS, Socket.IO, `@nestjs/schedule`                     |
-| DB / ORM  | Prisma + SQLite (single file, WAL mode)                   |
-| Sharing   | Zod schemas + types in `@cineseat/shared`                 |
+| Layer     | Choice                                                              |
+| --------- | ------------------------------------------------------------------- |
+| Monorepo  | npm workspaces + Turborepo 2.11                                     |
+| Frontend  | Next.js 16 (App Router) + Tailwind CSS v3.4, React 19               |
+| Backend   | NestJS 12 (Socket.IO + `@nestjs/schedule` land in later phases)     |
+| DB / ORM  | Prisma 6.19 + SQLite (single file, WAL mode)                        |
+| Sharing   | Zod 4 schemas + types in `@cineseat/shared` (tsup: CJS + ESM + dts) |
+| Language  | TypeScript 6 (TS 7 still lacks support in the Nest/ts-jest chain)   |
+| Quality   | ESLint 9 flat config (shared preset), Prettier                      |
 
-\* added when needed (phase 4 onward).
+TanStack Query, react-hook-form, Socket.IO, `qrcode`/`pdfkit` etc. are added when the
+phase that needs them starts — phase 0 is the running skeleton only.
+
+## Repository hygiene (what is never pushed to GitHub)
+
+`node_modules/`, `.turbo/`, `.next/`, `dist/`, `coverage/`, the SQLite file
+`apps/api/prisma/dev.db*` (including `-wal`/`-shm`), `apps/api/uploads/*`, and **all**
+`.env` files — only `.env.example` files are committed. CI/CD (`.github/` workflows) is
+intentionally left out for now and will be added later.
+
 
 ## Prerequisites
 
@@ -91,9 +102,13 @@ Never commit real `.env` files.
 
 ## Build phases
 
-Phase 0 (setup) is done: monorepo, Prisma + SQLite, seed, both apps run with one command.
-Next phases per `CineSeat Complete Project Guideline.md`: 1 Auth → 2 Catalog → 3 Seats and
-holds → 4 Checkout → 5 User panel → 6 Engagement → 7 Real time → 8 Admin analytics → 9 Hardening.
+Phase 0 (setup) is **done**: monorepo scaffolded, Prisma + SQLite migrated and seeded,
+`npm run dev` starts API (:4000) and web (:3000), shared types build on watch,
+lint/typecheck/test pipelines green, initial git history recorded.
+Next phases per `CineSeat Complete Project Guideline.md`: **1** Auth → **2** Catalog →
+**3** Seats and holds → **4** Checkout → **5** User panel → **6** Engagement →
+**7** Real time → **8** Admin analytics → **9** Hardening.
+GitHub Actions/CI and anything else cosmetic will be added later, phase by phase.
 
 ## License
 
