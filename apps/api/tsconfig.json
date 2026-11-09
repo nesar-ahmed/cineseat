@@ -2,7 +2,9 @@
   "extends": "@cineseat/tsconfig/nestjs.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    // specs are typechecked here but excluded by tsconfig.build.json
+    "types": ["node", "jest"]
   },
   // ts-node runs prisma/seed.ts, which lives outside src/ — relax rootDir for it.
   "ts-node": {

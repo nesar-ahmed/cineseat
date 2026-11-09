@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 const EnvSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_URL: z.string().min(1).default('file:./dev.db'),
   JWT_SECRET: z.string().min(16).default('dev-only-insecure-secret'),
@@ -21,6 +22,7 @@ export type Env = z.infer<typeof EnvSchema>;
 export function validateEnv(): Record<string, unknown> {
   const parsed = EnvSchema.parse(process.env);
   return {
+    nodeEnv: parsed.NODE_ENV,
     port: parsed.PORT,
     databaseUrl: parsed.DATABASE_URL,
     jwtSecret: parsed.JWT_SECRET,
