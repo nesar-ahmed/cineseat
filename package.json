@@ -2,7 +2,7 @@
   "name": "cineseat",
   "version": "0.0.0",
   "private": true,
-  "description": "CineSeat — offline-first movie ticket booking platform (NestJS + Next.js + SQLite monorepo)",
+  "description": "CineSeat — production-grade movie ticket booking platform (NestJS + Next.js + Prisma monorepo)",
   "packageManager": "npm@11.13.0",
   "engines": {
     "node": ">=22"

@@ -8,7 +8,7 @@ export default function HomePage() {
         Cine<span className="text-brand-500">Seat</span>
       </h1>
       <p className="max-w-xl text-neutral-400">
-        Offline-first movie ticket booking. NestJS API on <code>:4000</code>, Next.js web app here on{' '}
+        Production-grade movie ticket booking. NestJS API on <code>:4000</code>, Next.js web app here on{' '}
         <code>:3000</code>, shared Zod types in <code>@cineseat/shared</code>.
       </p>
       <div className="grid w-full grid-cols-1 gap-3 text-left text-sm sm:grid-cols-3">

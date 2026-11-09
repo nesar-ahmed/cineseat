@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'CineSeat',
-  description: 'Offline-first movie ticket booking — one seat, one buyer, at any moment.',
+  description: 'Production-grade movie ticket booking — one seat, one buyer, at any moment.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

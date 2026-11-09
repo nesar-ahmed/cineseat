@@ -15,12 +15,13 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  // OpenAPI / Swagger UI (bundled assets — works fully offline).
+  // OpenAPI / Swagger UI (assets bundled and served by the API itself).
   const swaggerConfig = new DocumentBuilder()
     .setTitle('CineSeat API')
     .setDescription(
-      'Offline-first movie ticket booking platform. NestJS + Prisma + SQLite monorepo API. ' +
-        'Auth uses JWT in an httpOnly cookie; endpoints are added phase by phase.',
+      'Production-grade movie ticket booking platform. Layered NestJS API with Prisma, ' +
+        'transactional seat holds, and real-time updates. Auth uses JWT in an httpOnly cookie; ' +
+        'endpoints are documented phase by phase.',
     )
     .setVersion('0.1.0')
     .addTag('system', 'Health and platform endpoints')
