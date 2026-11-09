@@ -32,6 +32,9 @@ next-env.d.ts
 npm-debug.log*
 .eslintcache
 
+# private notes (not for GitHub)
+guide.md
+
 # editors and OS
 .vscode/
 .idea/
