@@ -1,0 +1,260 @@
+// CineSeat data model (guideline section 7).
+// SQLite: statuses stored as strings (validated by Zod in @cineseat/shared),
+// money stored as integers (minor units).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  name            String
+  phone           String?
+  avatarPath      String?
+  role            String    @default("USER") // USER | ADMIN
+  preferredCity   String?
+  preferredGenres String? // comma-separated
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  bookings      Booking[]
+  reviews       Review[]
+  wishlists     Wishlist[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  payments      Payment[]
+
+  @@map("users")
+}
+
+model Movie {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  genre       String
+  language    String
+  durationMin Int
+  releaseDate DateTime
+  posterPath  String?
+  trailerUrl  String?
+  status      String   @default("NOW_SHOWING") // NOW_SHOWING | COMING_SOON
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shows     Show[]
+  reviews   Review[]
+  wishlists Wishlist[]
+
+  @@index([status])
+  @@map("movies")
+}
+
+model Theater {
+  id      String  @id @default(cuid())
+  name    String
+  city    String
+  address String
+
+  screens Screen[]
+
+  @@index([city])
+  @@map("theaters")
+}
+
+model Screen {
+  id        String  @id @default(cuid())
+  theaterId String
+  name      String
+  rows      Int
+  cols      Int
+
+  theater Theater @relation(fields: [theaterId], references: [id], onDelete: Cascade)
+  seats   Seat[]
+  shows   Show[]
+
+  @@map("screens")
+}
+
+model Seat {
+  id       String @id @default(cuid())
+  screenId String
+  row      Int
+  number   Int
+  category String @default("STANDARD") // STANDARD | PREMIUM | RECLINER
+
+  screen    Screen     @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  showSeats ShowSeat[]
+
+  @@unique([screenId, row, number])
+  @@map("seats")
+}
+
+model Show {
+  id        String   @id @default(cuid())
+  movieId   String
+  screenId  String
+  startsAt  DateTime
+  language  String
+  format    String   @default("2D") // 2D | 3D
+  basePrice Int // minor units
+
+  movie     Movie      @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  screen    Screen     @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  showSeats ShowSeat[]
+  bookings  Booking[]
+
+  @@index([movieId, startsAt])
+  @@map("shows")
+}
+
+model ShowSeat {
+  id            String    @id @default(cuid())
+  showId        String
+  seatId        String
+  status        String    @default("AVAILABLE") // AVAILABLE | HELD | BOOKED
+  heldBy        String?
+  holdExpiresAt DateTime?
+
+  show        Show          @relation(fields: [showId], references: [id], onDelete: Cascade)
+  seat        Seat          @relation(fields: [seatId], references: [id], onDelete: Cascade)
+  bookingSeat BookingSeat?
+
+  @@unique([showId, seatId])
+  @@index([showId, status])
+  @@index([status, holdExpiresAt])
+  @@map("show_seats")
+}
+
+model Booking {
+  id          String  @id @default(cuid())
+  userId      String
+  showId      String
+  status      String  @default("PENDING") // PENDING | CONFIRMED | FAILED | CANCELLED
+  totalAmount Int // minor units
+  couponId    String?
+
+  user   User     @relation(fields: [userId], references: [id])
+  show   Show     @relation(fields: [showId], references: [id])
+  coupon Coupon?  @relation(fields: [couponId], references: [id])
+  seats  BookingSeat[]
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([showId])
+  @@map("bookings")
+}
+
+model BookingSeat {
+  id          String @id @default(cuid())
+  bookingId   String
+  showSeatId  String @unique
+  price       Int // minor units
+
+  booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  showSeat ShowSeat @relation(fields: [showSeatId], references: [id])
+
+  @@map("booking_seats")
+}
+
+model Payment {
+  id          String @id @default(cuid())
+  bookingId   String
+  provider    String @default("mock")
+  providerRef String @unique
+  status      String // PENDING | SUCCESS | FAILED | REFUNDED
+  amount      Int // minor units
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+  userId  String
+
+  createdAt DateTime @default(now())
+
+  @@map("payments")
+}
+
+model Coupon {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  type       String // PERCENT | FLAT
+  value      Int // minor units, or percent when type = PERCENT
+  validFrom  DateTime
+  validTo    DateTime
+  usageLimit Int?
+  usedCount  Int       @default(0)
+
+  bookings Booking[]
+
+  @@map("coupons")
+}
+
+model Review {
+  id      String @id @default(cuid())
+  userId  String
+  movieId String
+  rating  Int
+  comment String
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, movieId])
+  @@map("reviews")
+}
+
+model Wishlist {
+  id      String @id @default(cuid())
+  userId  String
+  movieId String
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, movieId])
+  @@map("wishlists")
+}
+
+model Notification {
+  id      String    @id @default(cuid())
+  userId  String
+  type    String
+  title   String
+  body    String
+  readAt  DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id      String @id @default(cuid())
+  actorId String
+  action  String
+  entity  String
+  entityId String?
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@map("audit_logs")
+}

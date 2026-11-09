@@ -1,0 +1,16 @@
+{
+  "name": "@cineseat/tsconfig",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "files": [
+    "base.json",
+    "nestjs.json",
+    "nextjs.json"
+  ],
+  "exports": {
+    "./base.json": "./base.json",
+    "./nestjs.json": "./nestjs.json",
+    "./nextjs.json": "./nextjs.json"
+  }
+}

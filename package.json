@@ -1,0 +1,33 @@
+{
+  "name": "cineseat",
+  "version": "0.0.0",
+  "private": true,
+  "description": "CineSeat — offline-first movie ticket booking platform (NestJS + Next.js + SQLite monorepo)",
+  "packageManager": "npm@11.13.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "db:generate": "npm run db:generate -w @cineseat/api",
+    "db:migrate": "npm run db:migrate -w @cineseat/api",
+    "db:seed": "npm run db:seed -w @cineseat/api",
+    "setup": "npm install && npm run db:migrate && npm run db:seed",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "eslint": "^10.14.0",
+    "prettier": "^3.9.10",
+    "turbo": "^2.11.10",
+    "typescript": "^6.0.3"
+  }
+}

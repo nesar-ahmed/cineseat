@@ -1,0 +1,15 @@
+{
+  "name": "@cineseat/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "typescript-eslint": "^8.72.2"
+  }
+}

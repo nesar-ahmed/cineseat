@@ -1,0 +1,35 @@
+{
+  "name": "@cineseat/shared",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"(shared) no tests yet\""
+  },
+  "devDependencies": {
+    "@cineseat/eslint-config": "*",
+    "@cineseat/tsconfig": "*",
+    "tsup": "^9.0.0"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  }
+}

@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+
+# builds
+dist/
+.next/
+.turbo/
+out/
+coverage/
+
+# environment files (commit .env.example only)
+.env
+.env.*
+!.env.example
+
+# local SQLite database
+apps/api/prisma/dev.db
+apps/api/prisma/dev.db-journal
+apps/api/prisma/*.db-wal
+apps/api/prisma/*.db-shm
+
+# uploaded files (posters, avatars) — keep the folder, ignore its content
+apps/api/uploads/*
+!apps/api/uploads/README.md
+
+# generated
+next-env.d.ts
+*.tsbuildinfo
+
+# logs and misc
+*.log
+npm-debug.log*
+.DS_Store
