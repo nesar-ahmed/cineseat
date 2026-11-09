@@ -27,6 +27,7 @@ It runs on one computer with no internet at runtime: no Docker, no email, no thi
 | Sharing   | Zod 4 schemas + types in `@cineseat/shared` (tsup: CJS + ESM + dts) |
 | Language  | TypeScript 6 (TS 7 still lacks support in the Nest/ts-jest chain)   |
 | Quality   | ESLint 9 flat config (shared preset), Prettier                      |
+| API docs | `@nestjs/swagger` — OpenAPI 3 + Swagger UI at `/docs` (offline)     |
 
 TanStack Query, react-hook-form, Socket.IO, `qrcode`/`pdfkit` etc. are added when the
 phase that needs them starts — phase 0 is the running skeleton only.
@@ -53,6 +54,8 @@ npm run dev     # every day: starts API (:4000), web (:3000), and the shared wat
 
 - Web app: http://localhost:3000
 - API health: http://localhost:4000/health
+- Swagger UI (OpenAPI): http://localhost:4000/docs — raw JSON at `/docs/json`.
+  Assets are bundled by `@nestjs/swagger`, so the docs work fully offline.
 
 One app only: `npm run dev -w @cineseat/api` or `npx turbo run dev --filter=@cineseat/web`.
 

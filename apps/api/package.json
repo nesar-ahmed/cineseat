@@ -36,6 +36,7 @@
     "@nestjs/config": "^12.1.1",
     "@nestjs/core": "^12.4.2",
     "@nestjs/platform-express": "^12.4.2",
+    "@nestjs/swagger": "^12.1.1",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
     "reflect-metadata": "^0.2.2",
