@@ -1,7 +1,7 @@
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from './database/database.module';
-import { HealthModule } from './modules/health/health.module';
+import { HealthModule } from './health/health.module';
 import { validateEnv } from './config/env';
 
 @Module({

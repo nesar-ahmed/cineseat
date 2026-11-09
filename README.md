@@ -70,6 +70,13 @@ Other seeded users: `karim@`, `sadia@`, `tanvir@`, `mim@`cineseat.dev — same p
 ```
 apps/
   api/            # @cineseat/api    — NestJS backend + Prisma + SQLite (port 4000)
+    src/          # official Nest layout: one folder per feature module at the src root
+      config/     #   typed env validation (Zod)
+      common/     #   guards, filters, interceptors, decorators (phase 1+)
+      database/   #   global DatabaseModule + PrismaService (WAL)
+      health/     #   health module (GET /health)
+      auth/ movies/ shows/ ...  #   feature modules arrive phase by phase
+    prisma/       #   schema.prisma, migrations/, seed.ts, dev.db (git-ignored)
   web/            # @cineseat/web    — Next.js frontend (port 3000)
 packages/
   shared/         # @cineseat/shared — Zod schemas, inferred types, enums (tsup)
