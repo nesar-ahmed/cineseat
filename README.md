@@ -62,12 +62,13 @@ change, not a rewrite.
 | Backend   | NestJS 12 (Socket.IO + `@nestjs/schedule` land in later phases)     |
 | DB / ORM  | Prisma 6.19 + SQLite (WAL mode; PostgreSQL-ready design)            |
 | Sharing   | Zod 4 schemas + types in `@cineseat/shared` (tsup: CJS + ESM + dts) |
+| Auth      | `@nestjs/jwt` + `passport-jwt`, httpOnly cookie, `bcryptjs`, roles via guards |
 | Language  | TypeScript 6 (TS 7 still lacks support in the Nest/ts-jest chain)   |
 | Quality   | ESLint 9 flat config (shared preset), Prettier                      |
 | API docs  | `@nestjs/swagger` — OpenAPI 3 + Swagger UI at `/docs`               |
 
 TanStack Query, react-hook-form, Socket.IO, `qrcode`/`pdfkit` etc. are added when the
-phase that needs them starts — current status: **phase 0 complete**.
+phase that needs them starts.
 
 ## Prerequisites
 
@@ -85,6 +86,8 @@ npm run dev     # every day: starts API (:4000), web (:3000), and the shared wat
 - API health: http://localhost:4000/health
 - Swagger UI (OpenAPI): http://localhost:4000/docs — raw JSON at `/docs/json`
   (assets are bundled and served by the API itself — no external dependencies)
+  Signed-in routes use the `cookieAuth` scheme: call `POST /auth/login` from `/docs`
+  and the browser carries the httpOnly session cookie on every following request
 
 One app only: `npm run dev -w @cineseat/api` or `npx turbo run dev --filter=@cineseat/web`.
 
@@ -104,10 +107,12 @@ apps/
   api/            # @cineseat/api    — NestJS backend + Prisma + SQLite (port 4000)
     src/          # official Nest layout: one folder per feature module at the src root
       config/     #   typed env validation (Zod)
-      common/     #   guards, filters, interceptors, decorators (phase 1+)
+      common/     #   guards (JWT + roles), error filter, Zod pipe, decorators
       database/   #   global DatabaseModule + PrismaService (WAL)
       health/     #   health module (GET /health)
-      auth/ movies/ shows/ ...  #   feature modules arrive phase by phase
+      auth/       #   signup, login, logout, me — JWT in an httpOnly cookie
+      users/      #   profile, password, avatar upload, admin user list
+      movies/ shows/ ...  #   feature modules arrive phase by phase
     prisma/       #   schema.prisma, migrations/, seed.ts, dev.db (git-ignored)
   web/            # @cineseat/web    — Next.js frontend (port 3000)
 packages/
@@ -129,11 +134,14 @@ packages/
 | `npm run db:seed`    | Idempotent demo seed                          |
 | `npm run setup`      | install + migrate + seed                      |
 
+`npm run test` passes `--experimental-vm-modules` to Node: NestJS 12 ships ESM-only
+packages, and Jest needs that flag to load them from a CommonJS test file.
+
 ## Environment
 
 Copy the examples if you need to change defaults:
 
-- `apps/api/.env.example` → `apps/api/.env` (`PORT`, `DATABASE_URL`, `JWT_SECRET`, `WEB_ORIGIN`, `HOLD_MINUTES`, ...)
+- `apps/api/.env.example` → `apps/api/.env` (`NODE_ENV`, `PORT`, `DATABASE_URL`, `JWT_SECRET`, `WEB_ORIGIN`, `HOLD_MINUTES`, ...)
 - `apps/web/.env.example` → `apps/web/.env.local` (`NEXT_PUBLIC_API_URL`)
 
 Never commit real `.env` files.
@@ -149,21 +157,6 @@ intentionally left out for now and will be added later.
 
 Small, focused commits with conventional messages (`feat:`, `fix:`, `chore:`, `refactor:`,
 `docs:`), one branch per phase, a tag after each phase.
-
-## Project status
-
-| Phase | Scope | Status |
-| ----- | ----- | ------ |
-| 0 | Monorepo setup, Prisma + SQLite, seed, one-command dev | ✅ Done |
-| 1 | Auth & profiles (JWT cookie, roles, guards) | ⏭️ Next |
-| 2 | Catalog: movies, theaters, screens, shows | 🔜 Planned |
-| 3 | Seats & holds (transactional, expiry cron) | 🔜 Planned |
-| 4 | Checkout, coupons, mock payment, webhook | 🔜 Planned |
-| 5 | User panel, cancel & refund, tickets | 🔜 Planned |
-| 6 | Notifications, reviews & ratings | 🔜 Planned |
-| 7 | Real-time seats & notifications (Socket.IO) | 🔜 Planned |
-| 8 | Admin analytics, CSV reports, audit log, check-in | 🔜 Planned |
-| 9 | Hardening: unit/API/E2E/load tests, rate limits | 🔜 Planned |
 
 ## License
 
