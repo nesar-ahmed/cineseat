@@ -90,6 +90,23 @@
     @apply inline-flex items-center gap-1.5 rounded-full border border-ink-700/70 bg-ink-950/60 px-2.5 py-1 text-xs font-medium text-ink-300;
   }
 
+  /* Form controls, arrived with the auth and account pages (phase 1). */
+  .input {
+    @apply w-full rounded-xl border border-ink-700 bg-ink-950/70 px-3.5 py-2.5 font-sans text-sm text-ink-100 placeholder:text-ink-500 transition duration-200 hover:border-ink-600 motion-reduce:transition-none;
+  }
+
+  .field-label {
+    @apply mb-1.5 block font-sans text-xs font-semibold uppercase tracking-[0.14em] text-ink-300;
+  }
+
+  .field-error {
+    @apply mt-1.5 font-sans text-xs text-brand-400;
+  }
+
+  .field-hint {
+    @apply mt-1.5 font-sans text-xs text-ink-400;
+  }
+
   .section-label {
     @apply font-sans text-xs font-semibold uppercase tracking-[0.22em] text-brand-400;
   }

@@ -5,5 +5,7 @@ Feature code, one folder per domain (guideline section 5.2).
 | Folder | Contents |
 | --- | --- |
 | `landing/` | The public landing page: header, hero + interactive seat map, rules band, now-showing rail, how-it-works, under-the-hood tabs, venues, CTA, footer. `demo-data.ts` mirrors `apps/api/prisma/seed.ts` until the catalog endpoints (phase 2) provide the same shapes. |
+| `auth/` | Phase 1 session UI: `auth-provider.tsx` (context: who is signed in, login/signup/logout) and `auth-forms.tsx` (login + signup forms, validated with the shared Zod schemas). |
+| `account/` | The user panel: identity summary, profile edit + avatar upload, password change, and the ADMIN-only user directory — all against the phase-1 endpoints. |
 
 `movies/`, `seats/`, `bookings/` land with their phases.

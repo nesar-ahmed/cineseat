@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ArrowRightIcon, CloseIcon, LogoMark, MenuIcon } from '../../components/ui/icons';
+import { useAuth } from '../auth/auth-provider';
+import { assetUrl } from '../../lib/api';
 
 const links = [
   { href: '#browse', label: 'Movies' },
@@ -12,6 +15,8 @@ const links = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const { user, status, signOut } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     if (!open) return;
@@ -21,6 +26,14 @@ export function SiteHeader() {
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [open]);
+
+  const handleSignOut = async () => {
+    setOpen(false);
+    await signOut();
+    router.push('/');
+  };
+
+  const avatar = assetUrl(user?.avatarUrl);
 
   return (
     <header className="sticky top-0 z-50 border-b border-ink-800/70 bg-ink-950/70 backdrop-blur-md">
@@ -44,10 +57,32 @@ export function SiteHeader() {
           ))}
         </nav>
 
+        {/* Signed-out: log in. Signed-in: open the panel, sign out. While the
+            session check is in flight a same-size placeholder avoids layout
+            jump. */}
         <div className="hidden items-center gap-2 sm:flex">
-          <a href="#get-started" className="btn-ghost px-4 py-2 text-sm">
-            Sign in
-          </a>
+          {status === 'loading' ? (
+            <span className="h-9 w-44 rounded-full bg-ink-900" aria-hidden="true" />
+          ) : user ? (
+            <>
+              <a
+                href="/account"
+                className="flex items-center gap-2 rounded-full border border-ink-700 bg-ink-900/60 py-1.5 pl-1.5 pr-3 text-sm text-ink-100 transition hover:border-ink-600 hover:bg-ink-800 motion-reduce:transition-none"
+              >
+                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ink-800 text-xs font-semibold">
+                  {avatar ? <img src={avatar} alt="" className="h-full w-full object-cover" /> : initialsOf(user.name)}
+                </span>
+                <span className="max-w-32 truncate">{firstName(user.name)}</span>
+              </a>
+              <button type="button" onClick={handleSignOut} className="btn-ghost px-4 py-2 text-sm">
+                Sign out
+              </button>
+            </>
+          ) : (
+            <a href="/login" className="btn-ghost px-4 py-2 text-sm">
+              Log in
+            </a>
+          )}
           <a href="#browse" className="btn-primary px-4 py-2 text-sm">
             Book tickets
             <ArrowRightIcon className="h-4 w-4" />
@@ -84,10 +119,29 @@ export function SiteHeader() {
               </a>
             ))}
             <div className="mt-2 flex flex-col gap-2">
-              <a href="#get-started" onClick={() => setOpen(false)} className="btn-ghost">
-                Sign in
-              </a>
-              <a href="#browse" onClick={() => setOpen(false)} className="btn-primary">
+              {status === 'loading' ? (
+                <span className="h-11 rounded-full bg-ink-900" aria-hidden="true" />
+              ) : user ? (
+                <>
+                  <a href="/account" onClick={() => setOpen(false)} className="btn-primary">
+                    My account
+                    <ArrowRightIcon className="h-4 w-4" />
+                  </a>
+                  <button type="button" onClick={handleSignOut} className="btn-ghost">
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <a href="/login" onClick={() => setOpen(false)} className="btn-ghost">
+                    Log in
+                  </a>
+                  <a href="/signup" onClick={() => setOpen(false)} className="btn-primary">
+                    Sign up
+                  </a>
+                </>
+              )}
+              <a href="#browse" onClick={() => setOpen(false)} className="btn-ghost">
                 Book tickets
                 <ArrowRightIcon className="h-4 w-4" />
               </a>
@@ -97,4 +151,18 @@ export function SiteHeader() {
       ) : null}
     </header>
   );
+}
+
+function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] ?? name;
+}
+
+function initialsOf(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0] ?? '')
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 }
