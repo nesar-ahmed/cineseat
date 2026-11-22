@@ -1,19 +1,18 @@
 import type { Metadata } from 'next';
-import { AccountPanel } from '../../../features/account/account-panel';
+import { AccountOverview } from '../../../features/account/account-overview';
 
 export const metadata: Metadata = {
   title: 'My account — CineSeat',
-  description: 'Your CineSeat profile, avatar, password and (for admins) the user directory.',
+  description: 'Your CineSeat account: tickets, invoices, notifications and account settings.',
+  robots: { index: false, follow: false },
 };
 
-// The route itself stays thin (guideline 5.2); the panel reads the session
-// from AuthProvider and talks to the phase-1 auth/users endpoints.
+// The route stays thin (guideline 5.2): the overview reads the session from
+// AuthProvider and links to every other page of the user panel.
 export default function AccountPage() {
   return (
-    <div className="container-x py-10 sm:py-14">
-      <div className="mx-auto w-full max-w-3xl">
-        <AccountPanel />
-      </div>
+    <div className="container-x py-8 sm:py-12">
+      <AccountOverview />
     </div>
   );
 }

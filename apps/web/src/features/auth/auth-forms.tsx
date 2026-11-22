@@ -33,6 +33,11 @@ function safeNext(raw: string | null): string {
   return raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/account';
 }
 
+/** The other auth page, keeping `?next` so switching forms does not lose the way back. */
+function switchHref(path: '/login' | '/signup', next: string | null): string {
+  return next ? `${path}?next=${encodeURIComponent(safeNext(next))}` : path;
+}
+
 function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
     <section className="mx-auto w-full max-w-md px-5 py-12 sm:py-16">
@@ -153,7 +158,10 @@ export function LoginForm() {
       </form>
       <p className="mt-5 text-center text-sm text-ink-300">
         New to CineSeat?{' '}
-        <a href="/signup" className="font-semibold text-brand-400 hover:text-brand-300">
+        <a
+          href={switchHref('/signup', params.get('next'))}
+          className="font-semibold text-brand-400 hover:text-brand-300"
+        >
           Create an account
         </a>
       </p>
@@ -163,6 +171,7 @@ export function LoginForm() {
 
 export function SignupForm() {
   const router = useRouter();
+  const params = useSearchParams();
   const { signup } = useAuth();
   const [values, setValues] = useState({ name: '', email: '', password: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -181,7 +190,7 @@ export function SignupForm() {
     setBusy(true);
     try {
       await signup(parsed.data);
-      router.replace('/account');
+      router.replace(safeNext(params.get('next')));
     } catch (error) {
       setFormError(messageFor(error));
       setBusy(false);
@@ -229,7 +238,10 @@ export function SignupForm() {
       </form>
       <p className="mt-5 text-center text-sm text-ink-300">
         Already have an account?{' '}
-        <a href="/login" className="font-semibold text-brand-400 hover:text-brand-300">
+        <a
+          href={switchHref('/login', params.get('next'))}
+          className="font-semibold text-brand-400 hover:text-brand-300"
+        >
           Sign in
         </a>
       </p>
