@@ -1,18 +1,22 @@
 import type { Metadata, Viewport } from 'next';
-import { AuthProvider } from '../features/auth/auth-provider';
-import { SiteFooter } from '../features/landing/site-footer';
-import { SiteHeader } from '../features/landing/site-header';
+// Self-hosted variable fonts (OFL), bundled from npm — no third-party font CDN.
+import '@fontsource-variable/fraunces/soft.css';
+import '@fontsource-variable/fraunces/soft-italic.css';
+import '@fontsource-variable/plus-jakarta-sans/index.css';
+import { SiteFooter } from '../components/layout/site-footer';
+import { SiteHeader } from '../components/layout/site-header';
+import { Providers } from './providers';
 import './globals.css';
 
-const title = 'CineSeat — one seat, one buyer, at any moment';
+const title = 'CineSeat — movie tickets with the seat you actually want';
 const description =
-  'Movie ticket booking with database-level seat holds, live seat maps, coupon-aware checkout and an admin panel. Built as a typed TypeScript monorepo.';
+  'Book movie tickets in Dhaka and Chattogram. See what is showing, pick your exact seat, hold it for five minutes while you pay, and show your booking code at the cinema.';
 
 export const metadata: Metadata = {
   title,
   description,
   applicationName: 'CineSeat',
-  keywords: ['movie tickets', 'seat booking', 'cinema', 'NestJS', 'Next.js', 'monorepo'],
+  keywords: ['movie tickets', 'cinema', 'showtimes', 'seat booking', 'Dhaka', 'Chattogram'],
   openGraph: { title, description, type: 'website', siteName: 'CineSeat' },
   twitter: { card: 'summary_large_image', title, description },
 };
@@ -24,20 +28,23 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    // Smooth scrolling (globals.css) is for in-page anchors; Next turns it off for route changes.
+    <html lang="en" data-scroll-behavior="smooth">
       <body className="min-h-screen bg-ink-950 text-ink-100 antialiased">
         {/* First tab stop, so a keyboard user can skip the navigation. */}
         <a
-          href="#top"
+          href="#content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-full focus:bg-brand-500 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
         >
           Skip to content
         </a>
-        <AuthProvider>
+        <Providers>
           <SiteHeader />
-          <main>{children}</main>
+          <main id="content" tabIndex={-1} className="outline-none">
+            {children}
+          </main>
           <SiteFooter />
-        </AuthProvider>
+        </Providers>
       </body>
     </html>
   );

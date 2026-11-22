@@ -5,17 +5,17 @@
 /*
  * CineSeat design tokens.
  *
- * Typography is deliberately system-only: no font is fetched from the network,
- * which keeps the app working offline (guideline section 3). Drop a .woff2 into
- * `public/fonts/`, wire it up with `next/font/local` in `layout.tsx`, and set
- * --font-display / --font-sans here — nothing else has to change.
+ * Typography is self-hosted: Fraunces (display) and Plus Jakarta Sans (UI) ship
+ * as npm packages (@fontsource-variable/*, imported in `layout.tsx`), so no font
+ * is fetched from a third-party CDN and the app keeps working offline
+ * (guideline section 3). System fonts stay in each stack as the fallback.
  */
 @layer base {
   :root {
-    --font-display: ui-serif, 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia,
-      'Times New Roman', serif;
-    --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
-      Arial, sans-serif;
+    --font-display: 'Fraunces Variable', ui-serif, 'Iowan Old Style', 'Palatino Linotype', Palatino,
+      Georgia, 'Times New Roman', serif;
+    --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+      Roboto, 'Helvetica Neue', Arial, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono',
       monospace;
 
@@ -52,6 +52,8 @@
   h3 {
     @apply font-display;
     text-wrap: balance;
+    /* Fraunces: a touch of optical softness reads warmer at display sizes. */
+    font-variation-settings: 'SOFT' 50;
   }
 
   ::selection {
@@ -62,6 +64,25 @@
   :focus-visible {
     outline: 2px solid #e6b95c;
     outline-offset: 3px;
+  }
+}
+
+/* Printing (invoices): plain paper — no dark page, no glow; the site chrome hides itself. */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  /* Browsers drop backgrounds when printing; the invoice's band, logo and stamp keep theirs. */
+  .invoice-paper {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
 
@@ -93,6 +114,12 @@
   /* Form controls, arrived with the auth and account pages (phase 1). */
   .input {
     @apply w-full rounded-xl border border-ink-700 bg-ink-950/70 px-3.5 py-2.5 font-sans text-sm text-ink-100 placeholder:text-ink-500 transition duration-200 hover:border-ink-600 motion-reduce:transition-none;
+  }
+
+  /* A field the form marked invalid reads as such by its border too, not only its message. */
+  .input[aria-invalid='true'],
+  .select[aria-invalid='true'] {
+    @apply border-brand-500/70 hover:border-brand-400;
   }
 
   .field-label {
@@ -134,6 +161,49 @@
   .seat {
     @apply relative flex items-center justify-center rounded-t-md rounded-b-sm border text-[10px] font-semibold transition duration-150 motion-reduce:transition-none;
   }
+
+  /* Frosted panel for anything that floats over artwork (header, quick booking, dialogs). */
+  .glass {
+    @apply border border-white/10 bg-ink-900/55 backdrop-blur-xl;
+  }
+
+  /* Round icon-only button; callers add an aria-label. */
+  .btn-icon {
+    @apply inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ink-700 bg-ink-900/70 text-ink-200 transition duration-200 hover:border-ink-500 hover:bg-ink-800 hover:text-ink-50 disabled:pointer-events-none disabled:opacity-40 motion-reduce:transition-none;
+  }
+
+  /* Selectable pill used by filters and tabs; state comes from aria-pressed / aria-selected. */
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-ink-700 bg-ink-900/60 px-3.5 py-2 text-sm font-medium text-ink-200 transition duration-150 hover:border-ink-500 hover:text-ink-50 motion-reduce:transition-none;
+  }
+
+  .pill[aria-pressed='true'],
+  .pill[aria-selected='true'] {
+    @apply border-brand-500/70 bg-brand-500/15 text-ink-50;
+  }
+
+  /* Native <select> dressed to match .input, with our own chevron. */
+  .select {
+    @apply w-full cursor-pointer appearance-none rounded-xl border border-ink-700 bg-ink-950/70 py-2.5 pl-3.5 pr-10 font-sans text-sm text-ink-100 transition duration-200 hover:border-ink-600 motion-reduce:transition-none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a3a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+    background-position: right 0.85rem center;
+    background-repeat: no-repeat;
+    background-size: 1rem;
+  }
+
+  /* Horizontal, snap-scrolling rail of cards (touch-friendly, no visible scrollbar). */
+  .rail {
+    @apply flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2 sm:gap-5;
+    scrollbar-width: none;
+  }
+
+  .rail::-webkit-scrollbar {
+    display: none;
+  }
+
+  .text-gold-gradient {
+    @apply bg-gradient-to-r from-gold-200 via-gold-400 to-gold-500 bg-clip-text text-transparent;
+  }
 }
 
 @layer utilities {
@@ -144,6 +214,26 @@
     -webkit-mask-composite: source-in;
     mask-image: radial-gradient(circle 9px at 0 50%, transparent 98%, #000 100%),
       radial-gradient(circle 9px at 100% 50%, transparent 98%, #000 100%);
+    mask-composite: intersect;
+  }
+
+  /* A ticket torn in two: half-notches on the bottom corners of the body and the
+     top corners of the stub meet at the perforation, wherever it falls. */
+  .notch-bottom {
+    -webkit-mask-image: radial-gradient(circle 12px at 0 100%, transparent 98%, #000 100%),
+      radial-gradient(circle 12px at 100% 100%, transparent 98%, #000 100%);
+    -webkit-mask-composite: source-in;
+    mask-image: radial-gradient(circle 12px at 0 100%, transparent 98%, #000 100%),
+      radial-gradient(circle 12px at 100% 100%, transparent 98%, #000 100%);
+    mask-composite: intersect;
+  }
+
+  .notch-top {
+    -webkit-mask-image: radial-gradient(circle 12px at 0 0, transparent 98%, #000 100%),
+      radial-gradient(circle 12px at 100% 0, transparent 98%, #000 100%);
+    -webkit-mask-composite: source-in;
+    mask-image: radial-gradient(circle 12px at 0 0, transparent 98%, #000 100%),
+      radial-gradient(circle 12px at 100% 0, transparent 98%, #000 100%);
     mask-composite: intersect;
   }
 

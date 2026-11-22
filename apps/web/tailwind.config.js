@@ -1,6 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 const config = {
   content: ['./src/**/*.{ts,tsx}'],
+  // Hover styles only where a real pointer can hover: a tap on a phone must not
+  // leave a card stuck in its hover state.
+  future: { hoverOnlyWhenSupported: true },
   theme: {
     extend: {
       // One extra breakpoint so the seat map and nav behave on large phones.
@@ -76,11 +79,43 @@ const config = {
           '0%': { transform: 'translateX(-120%)' },
           '100%': { transform: 'translateX(220%)' },
         },
+        // Slow push-in on hero artwork, like a camera dolly.
+        'ken-burns': {
+          '0%': { transform: 'scale(1.02)' },
+          '100%': { transform: 'scale(1.12)' },
+        },
+        'fade-up': {
+          '0%': { opacity: '0', transform: 'translateY(12px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'fade-in': {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        // Drives the hero's "next slide" progress bar; duration set inline.
+        progress: {
+          '0%': { transform: 'scaleX(0)' },
+          '100%': { transform: 'scaleX(1)' },
+        },
+        'sheet-up': {
+          '0%': { transform: 'translateY(100%)' },
+          '100%': { transform: 'translateY(0)' },
+        },
+        // The admin panel's navigation drawer on small screens.
+        'drawer-in': {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
       },
       animation: {
         'seat-pulse': 'seat-pulse 2.4s ease-in-out infinite',
         float: 'float 7s ease-in-out infinite',
         sweep: 'sweep 2.8s ease-in-out infinite',
+        'ken-burns': 'ken-burns 14s ease-out both',
+        'fade-up': 'fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'fade-in': 'fade-in 0.3s ease-out both',
+        'sheet-up': 'sheet-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'drawer-in': 'drawer-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both',
       },
     },
   },
