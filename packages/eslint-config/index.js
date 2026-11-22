@@ -25,6 +25,13 @@ export default [
     },
   },
   {
+    // Plain Node scripts (e.g. apps/api/scripts/check-node.mjs).
+    files: ['**/scripts/**/*.mjs'],
+    languageOptions: {
+      globals: { process: 'readonly', console: 'readonly' },
+    },
+  },
+  {
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',

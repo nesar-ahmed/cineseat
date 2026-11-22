@@ -17,6 +17,10 @@
     },
     "typecheck": {
       "dependsOn": ["^build"]
+    },
+    "@cineseat/web#build": {
+      "dependsOn": ["^build", "@cineseat/web#typecheck"],
+      "outputs": [".next/**", "!.next/cache/**"]
     }
   }
 }

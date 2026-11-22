@@ -13,11 +13,8 @@ coverage/
 .env.*
 !.env.example
 
-# local SQLite database
-apps/api/prisma/dev.db
-apps/api/prisma/dev.db-journal
-apps/api/prisma/*.db-wal
-apps/api/prisma/*.db-shm
+# local SQLite database (dev.db plus its -wal/-shm/-journal companions)
+apps/api/data/
 
 # uploaded files (posters, avatars) — keep the folder, ignore its content
 apps/api/uploads/*
