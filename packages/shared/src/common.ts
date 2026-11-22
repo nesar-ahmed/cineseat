@@ -33,3 +33,14 @@ export const ListQuerySchema = z.object({
   search: z.string().trim().optional(),
 });
 export type ListQuery = z.infer<typeof ListQuerySchema>;
+
+/** `?genre=Drama,Comedy` or `?genre=Drama&genre=Comedy` — both become a list. */
+export const csvList = <T extends z.ZodType<string>>(item: T) =>
+  z.preprocess(
+    (value) =>
+      (Array.isArray(value) ? value : value === undefined || value === null ? [] : [value])
+        .flatMap((entry) => String(entry).split(','))
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    z.array(item).max(20),
+  );

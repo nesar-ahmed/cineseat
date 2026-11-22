@@ -62,6 +62,17 @@ export const ChangePasswordSchema = z.object({
 });
 export type ChangePasswordInput = z.infer<typeof ChangePasswordSchema>;
 
+/**
+ * PATCH /users/me/email — the email is the sign-in name, so changing it needs
+ * the current password: an unlocked device alone must not be able to take over
+ * the account.
+ */
+export const ChangeEmailSchema = z.object({
+  email: EmailSchema,
+  currentPassword: z.string().min(1, 'Current password is required').max(200),
+});
+export type ChangeEmailInput = z.infer<typeof ChangeEmailSchema>;
+
 /** Avatar upload response — `avatarUrl` is the public path under /uploads/. */
 export const AvatarSchema = z.object({
   avatarUrl: z.string(),
