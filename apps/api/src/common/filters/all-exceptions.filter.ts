@@ -6,8 +6,8 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import type { Request, Response } from 'express';
+import { databaseErrorCode, isConstraintViolation, isUniqueViolation } from '../../database/database-errors';
 
 /**
  * One error shape for every failed request (guideline section 6, 13):
@@ -38,12 +38,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message = parsed.message ?? exception.message;
         error = parsed.error ?? reasonPhrase(status);
       }
-    } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
-      // Unique-constraint violations surface as a conflict, not a 500.
-      status = exception.code === 'P2002' ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
+    } else if (isConstraintViolation(exception)) {
+      // Unique-constraint violations surface as a conflict, not a 500; any other
+      // constraint the database enforced (foreign key, NOT NULL) is a bad request.
+      status = isUniqueViolation(exception) ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
       message = status === HttpStatus.CONFLICT ? 'Already exists' : 'Request could not be stored';
       error = reasonPhrase(status);
-      this.logger.warn(`Prisma ${exception.code} on ${request.method} ${request.url}`);
+      this.logger.warn(`Database ${databaseErrorCode(exception)} on ${request.method} ${request.url}`);
     } else if (exception instanceof Error) {
       this.logger.error(`${request.method} ${request.url} → ${exception.message}`, exception.stack);
     } else {
