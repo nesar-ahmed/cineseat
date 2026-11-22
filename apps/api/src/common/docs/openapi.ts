@@ -7,8 +7,12 @@ import { ApiErrorSchema } from '@cineseat/shared';
  * documents it in Swagger, so the docs cannot drift from the implementation.
  * (`$schema` is dropped — it names the JSON-Schema dialect, not the OpenAPI one.)
  */
-export function toOpenApiSchema(schema: z.ZodType<unknown, unknown>): SchemaObject {
-  const { $schema: _dialect, ...jsonSchema } = z.toJSONSchema(schema);
+export function toOpenApiSchema(
+  schema: z.ZodType<unknown, unknown>,
+  /** `input` documents what clients send (request bodies with trimming/defaults); `output` what they get back. */
+  io: 'input' | 'output' = 'output',
+): SchemaObject {
+  const { $schema: _dialect, ...jsonSchema } = z.toJSONSchema(schema, { io });
   return jsonSchema as SchemaObject;
 }
 

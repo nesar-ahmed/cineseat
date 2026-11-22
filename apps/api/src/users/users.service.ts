@@ -1,12 +1,16 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@prisma/client';
-import type { User } from '@prisma/client';
+import { InjectRepository } from '@nestjs/typeorm';
+import type { FindOptionsWhere, Repository } from 'typeorm';
 import type { Paginated, PublicUser, UpdateProfileInput, UserListQuery, UserRole } from '@cineseat/shared';
 import { resolve, join } from 'node:path';
 import { unlink } from 'node:fs/promises';
 import { hashPassword, verifyPassword } from '../common/security/password';
-import { PrismaService } from '../database/prisma.service';
+import { isUniqueViolation } from '../database/database-errors';
+import { User } from '../database/entities';
+import { Contains } from '../database/find-operators';
+import { emailChanged, passwordChanged } from '../notifications/messages';
+import { NotificationsService } from '../notifications/notifications.service';
 import { AVATAR_SUBFOLDER, UPLOAD_URL_PREFIX } from './avatar.storage';
 
 /** Rows never leave this service: callers get `PublicUser`, which has no `passwordHash`. */
@@ -15,8 +19,9 @@ type PublicColumns = Pick<User, 'id' | 'email' | 'name' | 'phone' | 'avatarPath'
 @Injectable()
 export class UsersService {
   constructor(
-    private readonly prisma: PrismaService,
+    @InjectRepository(User) private readonly users: Repository<User>,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** SQLite stores statuses and lists as strings, so mapping happens here (guideline 7). */
@@ -36,11 +41,11 @@ export class UsersService {
 
   /** Row including the password hash — for credential checks inside the service layer only. */
   async findByEmailWithSecret(email: string): Promise<User | null> {
-    return this.prisma.user.findUnique({ where: { email } });
+    return this.users.findOne({ where: { email } });
   }
 
   async findById(id: string): Promise<User> {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+    const user = await this.users.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
@@ -52,11 +57,12 @@ export class UsersService {
   /** Signup always creates a `USER`; the `ADMIN` role is assigned by an admin, never by the client. */
   async create(input: { email: string; name: string; passwordHash: string }): Promise<PublicUser> {
     try {
-      const user = await this.prisma.user.create({ data: input });
+      // `role` is left out on purpose: the column default makes every signup a USER.
+      const user = await this.users.save(this.users.create(input));
       return this.toPublicUser(user);
     } catch (error) {
       // A second signup for the same email loses the race against the unique index.
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      if (isUniqueViolation(error)) {
         throw new ConflictException('An account with this email already exists');
       }
       throw error;
@@ -65,16 +71,18 @@ export class UsersService {
 
   async updateProfile(id: string, input: UpdateProfileInput): Promise<PublicUser> {
     const user = await this.findById(id);
-    const updated = await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        name: input.name,
-        phone: input.phone,
-        preferredCity: input.preferredCity,
-        preferredGenres: input.preferredGenres ? UsersService.joinGenres(input.preferredGenres) : undefined,
-      },
-    });
-    return this.toPublicUser(updated);
+    const candidates: Partial<User> = {
+      name: input.name,
+      phone: input.phone,
+      preferredCity: input.preferredCity,
+      preferredGenres: input.preferredGenres ? UsersService.joinGenres(input.preferredGenres) : undefined,
+    };
+    // Only the fields that were sent are written; everything else is left alone.
+    const changes = Object.fromEntries(
+      Object.entries(candidates).filter(([, value]) => value !== undefined),
+    ) as Partial<User>;
+    if (Object.keys(changes).length > 0) await this.users.update({ id: user.id }, changes);
+    return this.toPublicUser({ ...user, ...changes });
   }
 
   async changePassword(id: string, currentPassword: string, newPassword: string): Promise<void> {
@@ -83,10 +91,35 @@ export class UsersService {
     if (!matches) throw new BadRequestException('Current password is incorrect');
     if (currentPassword === newPassword) throw new BadRequestException('New password must be different');
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { passwordHash: await hashPassword(newPassword) },
-    });
+    await this.users.update({ id: user.id }, { passwordHash: await hashPassword(newPassword) });
+    await this.notifications.sendTo(user.id, passwordChanged());
+  }
+
+  /**
+   * Changes the sign-in email. The password is checked first, so without it the
+   * endpoint says nothing about which addresses are taken. `email` arrives
+   * trimmed and lowercased by `EmailSchema`, the same key signup and login use.
+   * Sessions survive: JwtStrategy reloads the account by id on every request.
+   */
+  async changeEmail(id: string, email: string, currentPassword: string): Promise<PublicUser> {
+    const user = await this.findById(id);
+    const matches = await verifyPassword(currentPassword, user.passwordHash);
+    if (!matches) throw new BadRequestException('Current password is incorrect');
+    if (email === user.email) throw new BadRequestException('This is already your email address');
+
+    const taken = await this.users.findOne({ where: { email }, select: { id: true } });
+    if (taken) throw new ConflictException('An account with this email already exists');
+    try {
+      await this.users.update({ id: user.id }, { email });
+    } catch (error) {
+      // Another account claimed the address between the check and the write.
+      if (isUniqueViolation(error)) {
+        throw new ConflictException('An account with this email already exists');
+      }
+      throw error;
+    }
+    await this.notifications.sendTo(user.id, emailChanged(user.email, email));
+    return this.toPublicUser({ ...user, email });
   }
 
   /**
@@ -97,27 +130,26 @@ export class UsersService {
   async setAvatar(id: string, filename: string): Promise<string> {
     const user = await this.findById(id);
     const avatarPath = `${UPLOAD_URL_PREFIX}/${AVATAR_SUBFOLDER}/${filename}`;
-    await this.prisma.user.update({ where: { id: user.id }, data: { avatarPath } });
+    await this.users.update({ id: user.id }, { avatarPath });
     await this.removeStoredFile(user.avatarPath);
     return avatarPath;
   }
 
   async list(query: UserListQuery): Promise<Paginated<PublicUser>> {
-    const where: Prisma.UserWhereInput = {
-      ...(query.role ? { role: query.role } : {}),
-      ...(query.search
-        ? { OR: [{ name: { contains: query.search } }, { email: { contains: query.search } }] }
-        : {}),
-    };
-    const [rows, total] = await this.prisma.$transaction([
-      this.prisma.user.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip: (query.page - 1) * query.pageSize,
-        take: query.pageSize,
-      }),
-      this.prisma.user.count({ where }),
-    ]);
+    const byRole: FindOptionsWhere<User> = query.role ? { role: query.role } : {};
+    // An array of conditions is OR-ed: the search matches the name or the email.
+    const where: FindOptionsWhere<User> | FindOptionsWhere<User>[] = query.search
+      ? [
+          { ...byRole, name: Contains(query.search) },
+          { ...byRole, email: Contains(query.search) },
+        ]
+      : byRole;
+    const [rows, total] = await this.users.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      skip: (query.page - 1) * query.pageSize,
+      take: query.pageSize,
+    });
     return { items: rows.map((row) => this.toPublicUser(row)), total, page: query.page, pageSize: query.pageSize };
   }
 

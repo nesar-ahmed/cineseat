@@ -2,9 +2,10 @@ import { UnauthorizedException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
 import { JwtService } from '@nestjs/jwt';
+import type { Repository } from 'typeorm';
 import { fromAuthCookie, JwtStrategy } from './jwt.strategy';
 import { AUTH_COOKIE_NAME } from '../../common/constants/session';
-import type { PrismaService } from '../../database/prisma.service';
+import type { User } from '../../database/entities';
 
 describe('fromAuthCookie', () => {
   it('returns the token from the session cookie', () => {
@@ -20,11 +21,11 @@ describe('fromAuthCookie', () => {
 });
 
 describe('JwtStrategy.validate', () => {
-  const prisma = { user: { findUnique: jest.fn() } };
+  const users = { findOne: jest.fn() };
   const config = {
     getOrThrow: jest.fn((key: string) => (key === 'jwtSecret' ? 'unit-test-secret-value-long-enough' : '1h')),
   } as unknown as jest.Mocked<ConfigService>;
-  const strategy = new JwtStrategy(config, prisma as unknown as PrismaService);
+  const strategy = new JwtStrategy(config, users as unknown as Repository<User>);
 
   const claims = { sub: 'usr_1', email: 'rina@cineseat.dev', role: 'USER' as const };
 
@@ -32,21 +33,21 @@ describe('JwtStrategy.validate', () => {
 
   it('returns the user the token points at, with the role read from the database', async () => {
     // A stale `role` claim in an old token must not survive: the DB row wins.
-    prisma.user.findUnique.mockResolvedValue({ id: 'usr_1', email: 'rina@cineseat.dev', role: 'ADMIN' });
+    users.findOne.mockResolvedValue({ id: 'usr_1', email: 'rina@cineseat.dev', role: 'ADMIN' });
 
     await expect(strategy.validate({ ...claims, role: 'USER' })).resolves.toEqual({
       id: 'usr_1',
       email: 'rina@cineseat.dev',
       role: 'ADMIN',
     });
-    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+    expect(users.findOne).toHaveBeenCalledWith({
       where: { id: 'usr_1' },
       select: { id: true, email: true, role: true },
     });
   });
 
   it('rejects a token whose user no longer exists', async () => {
-    prisma.user.findUnique.mockResolvedValue(null);
+    users.findOne.mockResolvedValue(null);
     await expect(strategy.validate(claims)).rejects.toThrow(UnauthorizedException);
   });
 

@@ -1,16 +1,17 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { ConfigService } from '@nestjs/config';
-import type { User } from '@prisma/client';
 import { hashSync } from 'bcryptjs';
+import type { Repository } from 'typeorm';
 import { AuthService } from './auth.service';
+import type { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
-import type { PrismaService } from '../database/prisma.service';
+import { User } from '../database/entities';
 
 const SECRET = 'unit-test-secret-at-least-16-chars';
 
 function userRow(overrides: Partial<User> = {}): User {
-  return {
+  return Object.assign(new User(), {
     id: 'usr_1',
     email: 'rina@cineseat.dev',
     passwordHash: hashSync('User@123', 4),
@@ -23,14 +24,23 @@ function userRow(overrides: Partial<User> = {}): User {
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     ...overrides,
-  };
+  });
 }
 
 describe('AuthService', () => {
-  const prisma = {
-    user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+  const users = {
+    findOne: jest.fn(),
+    // `create` only builds the entity in memory; `save` is the INSERT.
+    create: jest.fn((data: Partial<User>) => Object.assign(new User(), data)),
+    save: jest.fn(),
+    update: jest.fn(),
   };
   const config = { get: jest.fn(), getOrThrow: jest.fn() } as unknown as jest.Mocked<ConfigService>;
+  const notifications = {
+    welcomeNewUser: jest.fn(() => Promise.resolve()),
+    sendTo: jest.fn(() => Promise.resolve()),
+  };
+  const notifier = notifications as unknown as NotificationsService;
   let jwt: JwtService;
   let service: AuthService;
 
@@ -40,35 +50,46 @@ describe('AuthService', () => {
       key === 'jwtExpiresIn' ? '1h' : key === 'nodeEnv' ? 'test' : 'x',
     );
     jwt = new JwtService({ secret: SECRET, signOptions: { expiresIn: '1h' } });
-    service = new AuthService(new UsersService(prisma as unknown as PrismaService, config), jwt, config);
+    service = new AuthService(
+      new UsersService(users as unknown as Repository<User>, config, notifier),
+      jwt,
+      config,
+      notifier,
+    );
   });
 
   it('signup stores a bcrypt hash, never the plain password', async () => {
-    prisma.user.findUnique.mockResolvedValue(null);
-    prisma.user.create.mockImplementation(({ data }: { data: Partial<User> }) =>
-      Promise.resolve(userRow({ ...data, id: 'usr_new' } as Partial<User> as User)),
+    users.findOne.mockResolvedValue(null);
+    // Like the database: the row gets an id, and columns the insert left out keep their defaults.
+    users.save.mockImplementation((entity: User) =>
+      Promise.resolve(userRow({ id: 'usr_new', email: entity.email, name: entity.name, passwordHash: entity.passwordHash })),
     );
 
     const session = await service.signup({ name: 'New User', email: 'new@cineseat.dev', password: 'Passw0rd' });
 
-    const created = prisma.user.create.mock.calls[0][0] as { data: { passwordHash: string; role?: string } };
-    expect(created.data.passwordHash).not.toBe('Passw0rd');
-    expect(created.data.passwordHash.startsWith('$2')).toBe(true);
-    expect(created.data.role).toBeUndefined(); // role comes from the DB default, not the client
+    const saved = users.save.mock.calls[0][0] as User;
+    expect(saved.passwordHash).not.toBe('Passw0rd');
+    expect(saved.passwordHash.startsWith('$2')).toBe(true);
+    expect(saved.role).toBeUndefined(); // role comes from the DB default, not the client
     expect(session.user).not.toHaveProperty('passwordHash');
+    // The new account is welcomed (and the admins told) once it exists.
+    expect(notifications.welcomeNewUser).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'usr_new', name: 'New User', email: 'new@cineseat.dev' }),
+    );
   });
 
   it('signup rejects an email that is already taken', async () => {
-    prisma.user.findUnique.mockResolvedValue(userRow());
+    users.findOne.mockResolvedValue(userRow());
     await expect(service.signup({ name: 'Copy', email: 'rina@cineseat.dev', password: 'Passw0rd' })).rejects.toThrow(
       ConflictException,
     );
-    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(users.save).not.toHaveBeenCalled();
+    expect(notifications.welcomeNewUser).not.toHaveBeenCalled();
   });
 
   it('signup issues a session cookie token that carries the user id and role', async () => {
-    prisma.user.findUnique.mockResolvedValue(null);
-    prisma.user.create.mockResolvedValue(userRow({ id: 'usr_new', email: 'new@cineseat.dev' }));
+    users.findOne.mockResolvedValue(null);
+    users.save.mockResolvedValue(userRow({ id: 'usr_new', email: 'new@cineseat.dev' }));
 
     const session = await service.signup({ name: 'New User', email: 'new@cineseat.dev', password: 'Passw0rd' });
 
@@ -83,7 +104,7 @@ describe('AuthService', () => {
   });
 
   it('login accepts the correct password and returns the profile', async () => {
-    prisma.user.findUnique.mockResolvedValue(userRow({ role: 'ADMIN' }));
+    users.findOne.mockResolvedValue(userRow({ role: 'ADMIN' }));
     const session = await service.login({ email: 'rina@cineseat.dev', password: 'User@123' });
 
     expect(session.user.role).toBe('ADMIN');
@@ -92,12 +113,12 @@ describe('AuthService', () => {
   });
 
   it('login answers identically for a wrong password and an unknown email', async () => {
-    prisma.user.findUnique.mockResolvedValue(userRow());
+    users.findOne.mockResolvedValue(userRow());
     const wrongPassword = await service
       .login({ email: 'rina@cineseat.dev', password: 'WrongPass123' })
       .catch((error: unknown) => error);
 
-    prisma.user.findUnique.mockResolvedValue(null);
+    users.findOne.mockResolvedValue(null);
     const unknownEmail = await service
       .login({ email: 'ghost@cineseat.dev', password: 'User@123' })
       .catch((error: unknown) => error);
@@ -110,7 +131,7 @@ describe('AuthService', () => {
   });
 
   it('cookie options keep the token out of JavaScript and off other schemes', async () => {
-    prisma.user.findUnique.mockResolvedValue(userRow());
+    users.findOne.mockResolvedValue(userRow());
     const session = await service.login({ email: 'rina@cineseat.dev', password: 'User@123' });
     expect(service.cookieOptions(session.maxAgeMs)).toEqual({
       httpOnly: true,
@@ -122,7 +143,7 @@ describe('AuthService', () => {
   });
 
   it('me() re-reads the profile from the database instead of trusting the token', async () => {
-    prisma.user.findUnique.mockResolvedValue(userRow({ name: 'Renamed' }));
+    users.findOne.mockResolvedValue(userRow({ name: 'Renamed' }));
     await expect(service.getProfile('usr_1')).resolves.toMatchObject({ id: 'usr_1', name: 'Renamed' });
   });
 });

@@ -5,6 +5,7 @@ import type { CookieOptions } from 'express';
 import type { LoginInput, PublicUser, SignupInput } from '@cineseat/shared';
 import { hashPassword, verifyPassword } from '../common/security/password';
 import type { JwtPayload } from '../common/interfaces/auth.interface';
+import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
 
 /** What a successful signup/login hands to the controller. */
@@ -21,6 +22,7 @@ export class AuthService {
     private readonly users: UsersService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async signup(input: SignupInput): Promise<AuthSession> {
@@ -32,6 +34,8 @@ export class AuthService {
       name: input.name,
       passwordHash: await hashPassword(input.password),
     });
+    // After the account exists; a welcome that cannot be written never fails the signup.
+    await this.notifications.welcomeNewUser(user);
     return this.issueSession(user);
   }
 

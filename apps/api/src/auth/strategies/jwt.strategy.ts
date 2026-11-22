@@ -1,10 +1,12 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
+import { InjectRepository } from '@nestjs/typeorm';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import type { Request } from 'express';
+import type { Repository } from 'typeorm';
 import { AUTH_COOKIE_NAME } from '../../common/constants/session';
-import { PrismaService } from '../../database/prisma.service';
+import { User } from '../../database/entities';
 import type { AuthUser, JwtPayload } from '../../common/interfaces/auth.interface';
 
 /** Reads the session cookie set by the API; `undefined` means "not signed in". */
@@ -23,7 +25,7 @@ export function fromAuthCookie(request: Request | undefined): string | null {
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     config: ConfigService,
-    private readonly prisma: PrismaService,
+    @InjectRepository(User) private readonly users: Repository<User>,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([fromAuthCookie, ExtractJwt.fromAuthHeaderAsBearerToken()]),
@@ -35,7 +37,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(payload: JwtPayload): Promise<AuthUser> {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.users.findOne({
       where: { id: payload.sub },
       select: { id: true, email: true, role: true },
     });
