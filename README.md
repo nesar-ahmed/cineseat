@@ -8,45 +8,80 @@ and test through one cached, composable pipeline.
 
 The hard problem CineSeat is engineered around is booking integrity at scale:
 **one seat, one buyer, at any moment.** Holds are taken with transactional conditional
-updates plus unique constraints, live seat state is broadcast over WebSockets, and payment
-webhooks are idempotent — the same patterns that large ticketing systems rely on.
+updates plus unique constraints, the seat map refreshes by polling (WebSocket push is
+planned), and payment webhooks are idempotent — the same patterns that large ticketing
+systems rely on.
 
 > "Cine" is the cinema; "Seat" is the hard problem: **one seat, one buyer, at any moment.**
 
 ## Highlights
 
 - ⚡ **Concurrency-safe seat holds** — TypeORM transactions + a conditional `UPDATE … WHERE status = 'AVAILABLE'` + unique constraints; double booking is impossible by design
-- 🔴 **Real-time UX** — Socket.IO gateway pushes seat-map and notification updates instantly
-- 🏗️ **Production architecture** — thin controllers, service-layer business rules, global exception filter, JWT guards, role-based access, rate limiting, audit logging, health endpoint
+- 🔄 **Live seat map** — the map refreshes every 10 seconds while it is open (polling); real-time Socket.IO/SSE updates are planned, not built
+- 🏗️ **Production-style architecture** — thin controllers, service-layer business rules, global exception filter, JWT guards, role-based access, rate limiting, audit logging, health endpoint
 - 🧩 **End-to-end type safety** — one Zod schema set (`@cineseat/shared`) validates every request server-side and types every response client-side
-- 💳 **Complete booking lifecycle** — holds → checkout → coupons → mock payment + idempotent webhook → QR/PDF ticket → cancel & refund rules
-- 🛠️ **One-command developer experience** — `npm run setup`, then `npm run dev`; Turborepo caching makes rebuilds nearly instant
+- 💳 **Working booking lifecycle** — holds → checkout → coupons → mock payment + idempotent webhook → confirmed booking → invoice
+- 🛠️ **One-command developer experience** — `npm run setup`, then `npm run dev`; pending migrations also apply automatically on API startup; Turborepo caching makes rebuilds nearly instant
 - 📖 **Self-documented API** — OpenAPI 3 / Swagger UI served by the API itself at `/docs`
 
-## Feature set (delivered phase by phase)
+## What is built today
 
 - Auth with JWT in an httpOnly cookie, roles (`USER` / `ADMIN`), profile + avatar
 - Movies, theaters, screens, shows with search, filters, pagination
-- Live seat map (Available / Selected / Held / Booked), 5-minute holds, max 6 seats
-- Checkout with coupons, mock payment gateway, idempotent webhook, QR + PDF ticket
-- My bookings, cancellation with refund rule, wishlist, reviews (verified viewers only)
-- In-app notification center, Socket.IO live seats, cron jobs (hold expiry, reminders)
-- Admin panel: catalog CRUD, dashboard, reports with CSV export, audit log, check-in
+- Seat map (Available / Selected / Held / Booked), 5-minute holds, max 6 seats, 10-second refresh
+- Checkout with coupons, mock payment gateway, idempotent webhook, confirmed bookings and invoices
+- My bookings, invoices and an in-app notification center
+- Cron jobs: lapsed-hold cleanup, hold-ending warnings, show reminders, notification retention
+- Admin panel: dashboard, movies, theaters, showtimes, bookings, payments, users, notifications
+- Audit entries for admin changes, automatic refunds for late/duplicate money, signed webhook handling
+- 239 backend tests across 25 suites; TypeScript, ESLint, Prettier and migration checks
+
+## Not built yet
+
+The data model or the UI already hints at these, but there is **no working end-to-end feature**
+behind them yet:
+
+| Area | Current state |
+| --- | --- |
+| Real-time updates | Seat maps and badges poll every 10–30 s. No Socket.IO/SSE gateway, no Redis adapter. |
+| Cancellation and refunds | No user cancellation. Only automatic refunds for money that arrives late or twice. `REFUND_CUTOFF_HOURS` is defined in env but never read. |
+| QR / PDF tickets | No ticket document or QR code. `TICKET_SECRET` is configured but unused. |
+| Check-in | No booking-code lookup, no scanner, no admission state. The admin nav shows “Soon”. |
+| Reviews | `reviews` entity exists; no API or UI. Movie ratings are seeded and never updated. |
+| Wishlist | `wishlists` entity exists; the web app keeps a localStorage watchlist with no server sync. |
+| Admin offers | Coupons are seeded and validated at checkout; no CRUD, no management page. |
+| Announcements | `POST /notifications/announcements` exists; there is no admin page for it. |
+| Reports and CSV | Dashboard aggregates exist; there is no report builder or CSV export. |
+| Audit log viewer | Audit rows are written; there is no read API or admin page. |
+| Email / SMS | Notifications are in-app only — no welcome mail, receipt, reminder or password reset. |
+| CI, Docker, e2e | No GitHub Actions, no container images, no API e2e or browser tests. Web tests are a placeholder. |
+
+## Where the next complexity comes from
+
+These are deliberate “not yet” areas, to be designed before they are implemented:
+
+- **Booking correctness under load** — concurrent holds, payment races, coupon usage limits, idempotency under retries.
+- **Database concurrency and locking** — SQLite’s single writer today; PostgreSQL row locks (`SELECT … FOR UPDATE`), isolation levels, deadlock handling, and how `InventoryLane` changes shape.
+- **Performance** — query indexes, N+1 removal, caching, pagination at scale, load testing the hold/payment path.
+- **Real-time delivery** — Socket.IO/SSE, Redis pub/sub, reconnect and missed-event handling.
+- **Background work at scale** — BullMQ/Redis jobs, retries, outbox pattern for email/webhooks.
+- **Operational hardening** — Docker, CI/CD, observability (logs, metrics, tracing), backups, graceful shutdown.
+- **Security** — production secret enforcement, CSRF/origin checks, JWT revocation, password reset, email verification, MFA.
 
 ## Architecture
 
 ```
-┌────────────────────────┐   REST + WebSocket   ┌─────────────────────────┐
-│ Next.js (apps/web)     │ ───────────────────► │ NestJS (apps/api)       │
-│ pages, seat map, admin │ ◄─────────────────── │ controller → service    │
-└───────────┬────────────┘                      │ → TypeORM, gateway, cron│
-            │ imports                           └───────┬─────────┬───────┘
-            ▼                                   imports │         │ reads/writes
-   ┌─────────────────────┐ ◄────────────────────────────┘         ▼
-   │ packages/shared     │                           ┌────────────────────┐
-   │ Zod schemas + types │                           │ SQLite (dev.db)    │
-   └─────────────────────┘                           │ + uploads/ on disk │
-                                                      └────────────────────┘
+┌─────────────────────────┐   REST (polling today)   ┌──────────────────────────┐
+│ Next.js (apps/web)      │ ───────────────────►     │ NestJS (apps/api)        │
+│ pages, seat map, admin  │ ◄───────────────────     │ controller → service →   │
+└───────────┬─────────────┘                          │ TypeORM, gateway, cron   │
+            │ imports                                └───────┬──────────┬───────┘
+            ▼                                    imports │          │ reads/writes
+   ┌──────────────────────┐ ◄──────────────────────────────┘          ▼
+   │ packages/shared      │                                ┌────────────────────┐
+   │ Zod schemas + types  │                                │ SQLite (dev.db)    │
+   └──────────────────────┘                                │ + uploads/ on disk │
+                                                           └────────────────────┘
 ```
 
 Both apps import from `@cineseat/shared` and never from each other. The data layer keeps
@@ -59,7 +94,7 @@ means switching the TypeORM driver and regenerating migrations, not rewriting se
 | --------- | ------------------------------------------------------------------- |
 | Monorepo  | npm workspaces + Turborepo 2.11                                     |
 | Frontend  | Next.js 16 (App Router) + Tailwind CSS v3.4, React 19, TanStack Query 5 |
-| Backend   | NestJS 12 (Socket.IO + `@nestjs/schedule` land in later phases)     |
+| Backend   | NestJS 12 + `@nestjs/schedule` (Socket.IO is not installed yet)      |
 | DB / ORM  | TypeORM 1.1 + `better-sqlite3` (SQLite, WAL mode; migrations in TS) |
 | Sharing   | Zod 4 schemas + types in `@cineseat/shared` (tsup: CJS + ESM + dts) |
 | Auth      | `@nestjs/jwt` + `passport-jwt`, httpOnly cookie, `bcryptjs`, roles via guards |
@@ -68,8 +103,9 @@ means switching the TypeORM driver and regenerating migrations, not rewriting se
 | API docs  | `@nestjs/swagger` — OpenAPI 3 + Swagger UI at `/docs`               |
 
 The web app reads the catalog, cinemas and showtimes from the API through TanStack Query
-(one cache, see `apps/web/src/features/catalog/queries.ts`). react-hook-form, Socket.IO,
-`qrcode`/`pdfkit` etc. are added when the phase that needs them starts.
+(one cache, see `apps/web/src/features/catalog/queries.ts`). `react-hook-form`, Socket.IO,
+`qrcode`/`pdfkit` and similar are **not installed yet**; they are added only when the phase
+that needs them starts.
 
 ## Prerequisites
 
@@ -156,7 +192,10 @@ message when the shell runs an older Node.
 ## Database
 
 The schema lives in TypeORM entities (`apps/api/src/database/entities/`) and only changes
-through migrations (`synchronize` is off). To change it:
+through migrations (`synchronize` is off). The API applies pending migrations on startup,
+so a fresh checkout (or a deleted `dev.db`) comes up with the full schema — `db:migrate`
+is still the explicit way to do it, and `db:seed` fills an empty database with demo data.
+To change the schema:
 
 1. Edit the entities.
 2. `npm run db:migration:generate -w @cineseat/api -- src/database/migrations/<Name>` — TypeORM
@@ -167,8 +206,9 @@ through migrations (`synchronize` is off). To change it:
 
 The test suite runs every migration against a real SQLite file and fails if the result
 differs from what the entities describe. The build ships the same files, so a deployed API
-(run from `apps/api`) migrates with `npx typeorm migration:run -d dist/database/data-source.js`
-and seeds with `node dist/database/seed.js` — no TypeScript tooling needed.
+(run from `apps/api`) applies pending migrations on boot and seeds with
+`node dist/database/seed.js` — no TypeScript tooling needed. To run migrations by hand
+instead: `npx typeorm migration:run -d dist/database/data-source.js`.
 
 SQLite has a single writer, and TypeORM shares one connection across the whole app. Work
 that spans several statements inside `dataSource.transaction()` shares that connection
