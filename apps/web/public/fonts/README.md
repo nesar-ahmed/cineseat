@@ -1,1 +1,1 @@
-# Local fonts go here (next/font/local). Posters live in apps/api/uploads.
+# Fonts are self-hosted from npm (@fontsource-variable/fraunces, @fontsource-variable/plus-jakarta-sans), imported in src/app/layout.tsx. Put a .woff2 here only for a font that is not on npm. Posters live in apps/api/uploads.

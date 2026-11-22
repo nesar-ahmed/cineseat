@@ -14,5 +14,8 @@ is used by more than one feature module, so no feature module imports another fo
 | `docs/openapi.ts` | Zod → OpenAPI schema, so docs cannot drift from validation | phase 1 |
 | `security/password.ts` | bcrypt hashing/verification in one place | phase 1 |
 | `constants/session.ts` | The session cookie name and its Swagger scheme name | phase 1 |
+| `audit/audit-log.ts` | Admin changes to `audit_logs` (inside the change's transaction — a TypeORM one, or an InventoryLane unit with `recordChangeInLane`) and one thing's history | admin panel |
+| `docs/admin-queries.ts` | Swagger docs for the admin lists' query strings (`listQuery`, `ApiQueries`) | admin panel |
+| `http/http-message.ts` | The message a client would see for an `HttpException` (bulk and batch answers) | admin panel |
 | `interfaces/auth.interface.ts` | `AuthUser` (on `request.user`) and `JwtPayload` (token claims) | phase 1 |
 | interceptors (request logging) | shared response shaping | later phase |
