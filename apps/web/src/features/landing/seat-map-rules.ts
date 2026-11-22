@@ -1,9 +1,9 @@
 /**
- * Landing demo rules — they mirror the API defaults so nothing on the page
- * promises what the backend does not enforce:
- * `HOLD_MINUTES=5` and a six-seat maximum (guideline 2.4), and the same row
- * tiering the seed script uses (last row recliner, previous rows premium).
- * Price tiers are placeholders until per-category pricing lands in phase 3.
+ * Rules for the sample hall on the home page — the same ones the real seat map
+ * follows: a five-minute hold (HOLD_MINUTES) that starts when seats are
+ * reserved, six seats at most, and the seed's row tiers (last row recliner, the
+ * one before it premium). Prices are a sample: standard at a typical evening
+ * price, premium +৳100 and recliner +৳200 as the API charges.
  */
 export const HOLD_SECONDS = 5 * 60;
 export const MAX_SEATS = 6;

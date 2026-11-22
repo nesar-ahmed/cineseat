@@ -1,23 +1,27 @@
-import { CallToAction } from '../features/landing/call-to-action';
-import { Hero } from '../features/landing/hero';
-import { HowItWorks } from '../features/landing/how-it-works';
-import { NowShowing } from '../features/landing/now-showing';
-import { RulesBand } from '../features/landing/rules-band';
-import { UnderTheHood } from '../features/landing/under-the-hood';
-import { Venues } from '../features/landing/venues';
-import { WhySeats } from '../features/landing/why-seats';
+import { Cinemas } from '../features/landing/cinemas';
+import { Faq } from '../features/landing/faq';
+import { HeroBillboard } from '../features/landing/hero-billboard';
+import { MembershipCta } from '../features/landing/membership-cta';
+import { MovieRails } from '../features/landing/movie-rails';
+import { Offers } from '../features/landing/offers';
+import { QuickBooking } from '../features/landing/quick-booking';
+import { SeatExperience } from '../features/landing/seat-experience';
 
+/**
+ * Home: a cinematic billboard, booking in one row, then what's on, the offers,
+ * how seats work, the cinemas, and the answers people look for before paying.
+ */
 export default function HomePage() {
   return (
     <>
-      <Hero />
-      <RulesBand />
-      <NowShowing />
-      <WhySeats />
-      <HowItWorks />
-      <UnderTheHood />
-      <Venues />
-      <CallToAction />
+      <HeroBillboard />
+      <QuickBooking />
+      <MovieRails />
+      <Offers />
+      <SeatExperience />
+      <Cinemas />
+      <Faq />
+      <MembershipCta />
     </>
   );
 }

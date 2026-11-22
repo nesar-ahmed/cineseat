@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { ClockIcon } from '../../components/ui/icons';
 import { MAX_SEATS, HOLD_SECONDS, SEAT_PRICES, seatCategory } from './seat-map-rules';
 
@@ -58,8 +59,9 @@ function format(seconds: number): string {
 
 export function SeatMapCard() {
   const [picked, setPicked] = useState<string[]>([]);
+  const [held, setHeld] = useState(false);
   const [remaining, setRemaining] = useState(HOLD_SECONDS);
-  const [notice, setNotice] = useState('Pick a seat to start your 5:00 hold');
+  const [notice, setNotice] = useState('Pick seats, then reserve them — just like on a real show');
 
   const rows = useMemo(
     () =>
@@ -76,42 +78,58 @@ export function SeatMapCard() {
     [],
   );
 
-  // The countdown runs only while seats are picked, and drops them at zero.
+  // As on the real seat map, the clock starts when seats are reserved, not when they are picked.
   useEffect(() => {
-    if (picked.length === 0) {
-      setRemaining(HOLD_SECONDS);
-      return;
-    }
+    if (!held) return;
     const id = window.setInterval(() => setRemaining((value) => Math.max(value - 1, 0)), 1000);
     return () => window.clearInterval(id);
-  }, [picked.length]);
+  }, [held]);
 
   useEffect(() => {
-    if (remaining === 0 && picked.length > 0) {
+    if (held && remaining === 0) {
+      setHeld(false);
       setPicked([]);
-      setNotice('Hold expired — those seats went back on the map');
+      setNotice('Hold ended — those seats went back on sale');
     }
-  }, [remaining, picked.length]);
+  }, [held, remaining]);
 
-  const toggle = useCallback((key: string, state: SeatState) => {
-    if (state === 'held' || state === 'booked') {
-      setNotice(`Seat ${key} is ${STATE_LABEL[state]} — pick another chair`);
-      return;
-    }
-    setPicked((current) => {
-      if (current.includes(key)) {
-        setNotice(`Released ${key}`);
-        return current.filter((item) => item !== key);
+  const toggle = useCallback(
+    (key: string, state: SeatState) => {
+      if (held) {
+        setNotice('Your seats are held — release them to pick again');
+        return;
       }
-      if (current.length >= MAX_SEATS) {
-        setNotice(`Six seats is the limit for one booking`);
-        return current;
+      if (state === 'held' || state === 'booked') {
+        setNotice(`Seat ${key} is ${STATE_LABEL[state]} — pick another one`);
+        return;
       }
-      const next = [...current, key];
-      setNotice(next.length === 1 ? `Hold started for ${key} — 5:00 on the clock` : `${next.length} seats held`);
-      return next;
-    });
-  }, []);
+      setPicked((current) => {
+        if (current.includes(key)) {
+          setNotice(`${key} removed`);
+          return current.filter((item) => item !== key);
+        }
+        if (current.length >= MAX_SEATS) {
+          setNotice('Six seats is the limit for one booking');
+          return current;
+        }
+        const next = [...current, key];
+        setNotice(`${next.length} ${next.length === 1 ? 'seat' : 'seats'} picked — reserve to hold them`);
+        return next;
+      });
+    },
+    [held],
+  );
+
+  const reserve = () => {
+    setRemaining(HOLD_SECONDS);
+    setHeld(true);
+    setNotice(`Held for ${format(HOLD_SECONDS)} — on a real show, checkout starts here`);
+  };
+  const release = () => {
+    setHeld(false);
+    setPicked([]);
+    setNotice('Released — the seats are free for everyone again');
+  };
 
   const total = picked.reduce(
     (sum, key) => sum + SEAT_PRICES[seatCategory(ROWS.indexOf(key[0]) + 1, ROWS.length)],
@@ -122,12 +140,12 @@ export function SeatMapCard() {
     <div className="card grain relative overflow-hidden p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-display text-lg leading-tight text-ink-50">Midnight Express</p>
-          <p className="text-xs text-ink-400">CineSeat Bashundhara · Screen 1 · 8:30 PM</p>
+          <p className="font-display text-lg leading-tight text-ink-50">Sample hall</p>
+          <p className="text-xs text-ink-400">Try it — nothing here is booked for real</p>
         </div>
-        <span className="chip tabular-nums">
+        <span className={`chip tabular-nums ${held ? 'border-brand-500/50 text-ink-50' : ''}`}>
           <ClockIcon className="h-3.5 w-3.5" />
-          {format(remaining)}
+          {held ? format(remaining) : format(HOLD_SECONDS)}
         </span>
       </div>
 
@@ -188,7 +206,7 @@ export function SeatMapCard() {
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-ink-800 pt-4">
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-ink-500">
-            {picked.length} of {MAX_SEATS} seats · {SEAT_PRICES.STANDARD}–{SEAT_PRICES.RECLINER} ৳
+            {picked.length} of {MAX_SEATS} seats · sample prices
           </p>
           <p className="font-display text-2xl tabular-nums">
             {picked.length ? (
@@ -198,12 +216,25 @@ export function SeatMapCard() {
             )}
           </p>
         </div>
-        <button
-          type="button"
-          className={picked.length ? 'btn-primary w-full sm:w-auto' : 'btn-ghost w-full sm:w-auto opacity-50'}
-        >
-          {picked.length ? 'Continue to checkout' : 'Select a seat'}
-        </button>
+        {held ? (
+          <div className="flex w-full gap-2 sm:w-auto">
+            <button type="button" onClick={release} className="btn-ghost flex-1 sm:flex-none">
+              Release
+            </button>
+            <Link href="/movies" className="btn-primary flex-1 sm:flex-none">
+              Book a real show
+            </Link>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={reserve}
+            disabled={picked.length === 0}
+            className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none sm:w-auto"
+          >
+            {picked.length ? `Reserve ${picked.length} ${picked.length === 1 ? 'seat' : 'seats'}` : 'Pick a seat'}
+          </button>
+        )}
       </div>
 
       {/* Seat changes are announced, not just shown. */}
