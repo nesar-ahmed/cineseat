@@ -12,7 +12,8 @@ import { UPLOAD_URL_PREFIX } from './users/avatar.storage';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // rawBody: the payment webhook verifies its signature over the exact bytes received.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
   const config = app.get(ConfigService);
 
   // Strict CORS: only the web origin, with credentials for the JWT cookie.
@@ -38,7 +39,7 @@ async function bootstrap(): Promise<void> {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('CineSeat API')
     .setDescription(
-      'Production-grade movie ticket booking platform. Layered NestJS API with Prisma, ' +
+      'Production-grade movie ticket booking platform. Layered NestJS API with TypeORM + SQLite, ' +
         'transactional seat holds, and real-time updates. Auth uses JWT in an httpOnly cookie; ' +
         'endpoints are documented phase by phase.',
     )
@@ -46,6 +47,18 @@ async function bootstrap(): Promise<void> {
     .addTag('system', 'Health and platform endpoints')
     .addTag('auth', 'Signup, login, session')
     .addTag('users', 'Profiles, avatars, admin user list')
+    .addTag('movies', 'Browse, search and (ADMIN) manage movies')
+    .addTag('catalog', 'Filter vocabulary and facet counts for the movies catalog')
+    .addTag('theaters', 'Cinemas, screens and seat layouts')
+    .addTag('shows', 'Showtimes, seat maps and (ADMIN) scheduling')
+    .addTag('holds', 'Reserve seats for a few minutes while checking out')
+    .addTag('checkout', 'Price a hold, apply offer codes and start paying (mock provider only)')
+    .addTag('bookings', 'Your bookings and their payment status')
+    .addTag('invoices', 'Invoices for the bookings you paid for')
+    .addTag('admin', 'Read models for the admin panel (ADMIN only)')
+    .addTag('notifications', 'Your in-app notifications, and (ADMIN) announcements')
+    .addTag('payments', 'Payment results reported by the provider (webhook)')
+    .addTag('mock-gateway', 'TEST MODE payment gateway: test cards only, no real money')
     .addCookieAuth(AUTH_COOKIE_NAME, { type: 'apiKey' }, AUTH_COOKIE_SCHEME)
     .addServer(`http://localhost:${config.get('port') ?? 4000}`)
     .build();
